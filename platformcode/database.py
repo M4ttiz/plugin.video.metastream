@@ -31,18 +31,62 @@ class DatabaseManager:
                     imdb_id TEXT,
                     tmdb_id TEXT,
                     title TEXT,
-                    payload TEXT
+                    payload TEXT,
+                    timestamp_added TEXT DEFAULT (date('now'))
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS watch_progress (
+                    media_key TEXT PRIMARY KEY,
+                    resume_point REAL DEFAULT 0,
+                    watched INTEGER DEFAULT 0,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+                """
+            )
+            columns = [row[1] for row in connection.execute("PRAGMA table_info(media_cache)").fetchall()]
+            if 'timestamp_added' not in columns:
+                connection.execute("ALTER TABLE media_cache ADD COLUMN timestamp_added TEXT DEFAULT (date('now'))")
             connection.execute(self.index_sql())
             connection.commit()
+
+            self.purge_stale_cache()
+            threading.Thread(target=self.purge_stale_cache, daemon=True).start()
 
     def index_sql(self) -> str:
         return """
 CREATE INDEX IF NOT EXISTS idx_media_cache_imdb_id ON media_cache(imdb_id);
 CREATE INDEX IF NOT EXISTS idx_media_cache_tmdb_id ON media_cache(tmdb_id);
+CREATE INDEX IF NOT EXISTS idx_media_cache_timestamp_added ON media_cache(timestamp_added);
 """
+
+    def purge_stale_cache(self) -> int:
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.execute(
+                "DELETE FROM media_cache WHERE timestamp_added < date('now', '-7 days')"
+            )
+            connection.commit()
+        return int(cursor.rowcount or 0)
+
+    def save_watch_progress(self, media_key: str, resume_point: float, watched: bool = False) -> None:
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS watch_progress (
+                    media_key TEXT PRIMARY KEY,
+                    resume_point REAL DEFAULT 0,
+                    watched INTEGER DEFAULT 0,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+                """,
+            )
+            connection.execute(
+                "INSERT OR REPLACE INTO watch_progress(media_key, resume_point, watched, updated_at) VALUES (?, ?, ?, datetime('now'))",
+                (media_key, float(resume_point), 1 if watched else 0),
+            )
+            connection.commit()
 
     def connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.db_path)
@@ -53,7 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_media_cache_tmdb_id ON media_cache(tmdb_id);
                 with self._write_lock:
                     with sqlite3.connect(self.db_path, check_same_thread=False) as connection:
                         connection.executemany(
-                            "INSERT OR REPLACE INTO media_cache(imdb_id, tmdb_id, title, payload) VALUES (?, ?, ?, ?)",
+                            "INSERT OR REPLACE INTO media_cache(imdb_id, tmdb_id, title, payload, timestamp_added) VALUES (?, ?, ?, ?, date('now'))",
                             rows,
                         )
                         connection.commit()

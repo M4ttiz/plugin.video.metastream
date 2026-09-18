@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, quote, urlencode
 
 import xbmc
@@ -55,16 +56,92 @@ def parse_kodi_params() -> tuple[int, dict]:
     return handle, params
 
 
-def _render_search(handle: int, query: str) -> None:
+class MetastreamPlayer(xbmc.Player):
+    def __init__(self, *args, **kwargs):
+        self.current_media_key = ''
+        self.resume_point = 0.0
+        self.scrobble_done = False
+        super().__init__()
+
+    def _persist_resume(self) -> None:
+        try:
+            db = DatabaseManager()
+            key = self.current_media_key or self.getPlayingFile() or 'unknown'
+            db.save_watch_progress(key, float(self.getTime() or 0.0), watched=self.scrobble_done)
+        except Exception as exc:
+            xbmc.log(f"Watch progress save failed: {exc}", xbmc.LOGERROR)
+
+    def _trakt_scrobble(self) -> None:
+        if self.scrobble_done:
+            return
+        try:
+            token = os.environ.get('TRAKT_ACCESS_TOKEN') or config.get_setting('trakt_token', default='')
+            if not token:
+                return
+            payload = {
+                'progress': 100,
+                'status': 'completed',
+                'media_key': self.current_media_key or self.getPlayingFile() or 'unknown',
+            }
+            self.scrobble_done = True
+            worker = threading.Thread(
+                target=lambda: self._trakt_scrobble_request(payload, token),
+                daemon=True,
+            )
+            worker.start()
+        except Exception as exc:
+            xbmc.log(f"Trakt scrobble enqueue failed: {exc}", xbmc.LOGERROR)
+
+    def _trakt_scrobble_request(self, payload: dict, token: str) -> None:
+        try:
+            import script.module.requests as requests
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+            }
+            requests.post('https://api.trakt.tv/scrobble', headers=headers, json=payload, timeout=8)
+        except Exception as exc:
+            xbmc.log(f"Trakt scrobble request failed: {exc}", xbmc.LOGERROR)
+
+    def onPlayBackStarted(self):
+        self.scrobble_done = False
+        self.resume_point = 0.0
+        self.current_media_key = self.getPlayingFile() or self.current_media_key
+
+    def onPlayBackEnded(self):
+        self.resume_point = float(self.getTime() or 0.0)
+        self._persist_resume()
+        self._trakt_scrobble()
+
+    def onPlayBackStopped(self):
+        self.resume_point = float(self.getTime() or 0.0)
+        self._persist_resume()
+        self._trakt_scrobble()
+
+
+def _provider_search(provider, query: str, limit: int = 10) -> list[dict]:
+    return provider.search(query, limit=limit)
+
+
+def _search_all_providers(query: str) -> list[dict]:
     providers = [TorrentioProvider(), BitSearchProvider()]
     results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=max(1, len(providers))) as executor:
+        future_map = {executor.submit(_provider_search, provider, query, 10): provider for provider in providers}
+        for future in as_completed(future_map):
+            provider = future_map[future]
+            try:
+                future_result = future.result(timeout=4)
+                if future_result:
+                    results.extend(future_result)
+            except Exception as exc:
+                xbmc.log(f"Provider search failed for {provider.name}: {exc}", xbmc.LOGERROR)
+    return results
 
-    for provider in providers:
-        try:
-            provider_results = provider.search(query, limit=10)
-            results.extend(provider_results)
-        except Exception as exc:
-            xbmc.log(f"Provider search failed for {provider.name}: {exc}", xbmc.LOGERROR)
+
+def _render_search(handle: int, query: str) -> None:
+    results = _search_all_providers(query)
 
     for record in results:
         record.setdefault('provider', 'unknown')
@@ -81,6 +158,9 @@ def _render_search(handle: int, query: str) -> None:
         window = MetastreamView('custom_view.xml', config.get_runtime_path())
         window.results = results
         window.handle = handle
+        window.query = query
+        window.page = 1
+        window.load_more_callback = lambda q, page: _search_all_providers(q)
         window.doModal()
         del window
         return
@@ -127,7 +207,6 @@ def _render_search(handle: int, query: str) -> None:
 def _resolve_magnet(handle: int, magnet: str) -> None:
     if not magnet:
         xbmcgui.Dialog().notification('Errore Risoluzione', 'Payload magnet mancante', xbmcgui.NOTIFICATION_ERROR)
-        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
         return
 
     resolved_url = ''
@@ -139,19 +218,20 @@ def _resolve_magnet(handle: int, magnet: str) -> None:
             if resolved_url:
                 break
         except Exception as exc:
+            status = getattr(exc, 'status_code', None)
+            if status in (401, 403, 500, 502, 503, 504):
+                xbmc.log(f"Debrid fallback triggered for {client.name} due to HTTP {status}", xbmc.LOGWARNING)
             last_error = f"{client.name}: {exc}"
             xbmc.log(f"Debrid resolution failed for {client.name}: {exc}", xbmc.LOGERROR)
 
     if not resolved_url:
         xbmcgui.Dialog().notification('Errore Risoluzione', last_error, xbmcgui.NOTIFICATION_ERROR)
-        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
         return
 
     debug_log('RESOLVE OUTPUT', resolved_url)
-    item = xbmcgui.ListItem(label='Resolved stream')
-    item.setPath(resolved_url)
-    item.setProperty('IsPlayable', 'true')
-    xbmcplugin.setResolvedUrl(handle, True, item)
+    player = MetastreamPlayer()
+    player.current_media_key = magnet
+    player.play(resolved_url)
 
 
 def _route() -> None:

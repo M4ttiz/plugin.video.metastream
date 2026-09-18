@@ -11,11 +11,19 @@ import script.module.requests as requests
 
 
 class DebridClientError(RuntimeError):
-    def __init__(self, message: str, *, endpoint: Optional[str] = None, payload: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        endpoint: Optional[str] = None,
+        payload: Optional[Dict[str, Any]] = None,
+        status_code: Optional[int] = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.endpoint = endpoint
         self.payload = payload or {}
+        self.status_code = status_code
 
 
 class DebridClient(ABC):
@@ -62,8 +70,9 @@ class DebridClient(ABC):
                 return payload
             raise DebridClientError(f"Unexpected non-dict payload for {url}", endpoint=url, payload={"raw": payload})
         except requests.RequestException as exc:
+            status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
             self._log(f"HTTP error: {url} :: {exc}", xbmc.LOGERROR)
-            raise DebridClientError(f"Network error: {exc}", endpoint=url) from exc
+            raise DebridClientError(f"Network error: {exc}", endpoint=url, status_code=status_code) from exc
         except ValueError as exc:
             self._log(f"JSON parse error: {url} :: {exc}", xbmc.LOGERROR)
             raise DebridClientError(f"JSON parse error: {exc}", endpoint=url) from exc
