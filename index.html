@@ -3,10 +3,134 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>plugin.video.metastream</title>
+    <title>Metastream Repository</title>
+    <style>
+      :root {
+        --bg: #121212;
+        --card: #1e1e1e;
+        --card-border: rgba(255, 255, 255, 0.08);
+        --muted: #a7a7a7;
+        --text: #f5f5f5;
+        --accent: #1e88e5;
+        --accent-hover: #42a5f5;
+        --code-bg: #0b0b0b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(100%, 760px);
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 18px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        padding: 40px 32px;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 3.25rem);
+        line-height: 1.1;
+      }
+
+      .subtitle {
+        margin: 14px 0 28px;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+
+      .download-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 28px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 8px 18px rgba(30, 136, 229, 0.35);
+      }
+
+      .download-link:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+      }
+
+      .repo-box {
+        margin-top: 28px;
+        background: var(--code-bg);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 16px 18px;
+        overflow: auto;
+      }
+
+      .repo-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .repo-url {
+        margin: 0;
+        color: #dfe9ff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 0.96rem;
+        line-height: 1.6;
+        word-break: break-all;
+      }
+    </style>
   </head>
   <body>
-    <h1>plugin.video.metastream</h1>
-    <p><a href="plugin.video.metastream/plugin.video.metastream.zip">Download add-on zip</a></p>
+    <main class="card" aria-label="Metastream repository landing page">
+      <p class="eyebrow">Kodi Add-on Repository</p>
+      <h1>Metastream Repository</h1>
+      <p class="subtitle">Debrid, Meta-scraper JSON</p>
+
+      <a
+        class="download-link"
+        href="plugin.video.metastream/plugin.video.metastream.zip"
+        download
+        aria-label="Download Metastream add-on zip"
+      >
+        Download add-on
+      </a>
+
+      <div class="repo-box" aria-label="Kodi repository URL">
+        <span class="repo-label">Kodi File Manager URL</span>
+        <pre class="repo-url">https://m4ttiz.github.io/plugin.video.metastream/</pre>
+      </div>
+    </main>
   </body>
 </html>
