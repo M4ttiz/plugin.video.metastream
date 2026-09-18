@@ -1,14 +1,31 @@
-# Stream4Me
-Un addon di terze parti per Kodi che consente di cercare e guardare contenuti presenti nel web
-### fork italiano di [Alfa](https://github.com/alfa-addon)
+# plugin.video.metastream
 
-Installazione: https://stream4me.github.io/#download
+A Kodi add-on for discovering and streaming media through a hybrid, metadata-driven scraping and debrid ecosystem.
 
-S4Me, come Alfa, è sotto licenza GPL v3, pertanto siete liberi di utilizzare parte del codice, a patto di rispettare i termini di suddetta licenza, che si possono riassumere in: 
- 
-- Il tuo addon deve essere rilasciando secondo la stessa licenza, ovvero essere open source (il fatto che lo zip sia visibile da chiunque non ha importanza, è necessario avere un repository git come questo) 
-- Aggiungere i crediti a tutto ciò che copiate/modificate, ad esempio aggiungendo un commento nel file in questione o, meglio, facendo un cherry-pick (in modo da preservarne lo storico)
+## Features
 
-### Come contribuire o fare segnalazioni?
-Ti piace il progetto e vuoi dare una mano? Leggi [qui](https://github.com/stream4me/addon/blob/master/CONTRIBUTING.md)
+- Hybrid architecture built around a meta-scraper layer with providers such as Torrentio and BitSearch
+- Debrid API support for Real-Debrid, AllDebrid, and Premiumize
+- TMDB and Trakt integration for metadata, discovery, and library enrichment
+- Asynchronous SQLite database layer for local caching, indexing, and fast lookups
+- Kodi-focused media browsing and playback workflow optimized for fast discovery and minimal friction
+
+## Installation
+
+1. Open Kodi and go to Settings > File Manager.
+2. Select Add Source and enter the repository URL:
+   https://m4ttiz.github.io/plugin.video.metastream/
+3. Name the source, for example: `Metastream`.
+4. Return to the home screen and open Add-ons.
+5. Select Install from zip file.
+6. Choose the source you just added and install the package from:
+   `plugin.video.metastream/plugin.video.metastream.zip`
+
+## Repository metadata
+
+This project includes a minimal GitHub Pages landing page and repository metadata generation script so Kodi can install the add-on from a zip-based source.
+
+## License
+
+This project is distributed under the terms of the GNU General Public License v3.0.
 
